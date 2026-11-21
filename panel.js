@@ -48,7 +48,13 @@ $('analyzeRequest').addEventListener('click',async()=>{
   ensureReady();button.disabled=true;notice.textContent='Nexora está preparando una respuesta…';
   const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw Error('Inicia sesión otra vez.');
   const r=await fetch('/api/receptionist',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({message:raw,businessId:business.id})});
-  const result=await r.json();if(!r.ok)throw Error(result.error||'No se pudo consultar la IA.');
+  const contentType=r.headers.get('content-type')||'';
+  if(!contentType.includes('application/json')){
+    const body=await r.text();
+    if(r.status===404)throw Error('La API /api/receptionist no existe en este despliegue. Comprueba api/receptionist.js en GitHub y espera Vercel Ready.');
+    throw Error(`La API devolvió HTTP ${r.status} en lugar de JSON. Revisa Vercel → Logs. ${body.slice(0,90)}`);
+  }
+  const result=await r.json();if(!r.ok)throw Error(result.error||`Error HTTP ${r.status} al consultar la IA.`);
   answer.textContent=result.reply;answer.hidden=false;
   const proposal=result.proposal||{};
   if(proposal.intent==='booking'){

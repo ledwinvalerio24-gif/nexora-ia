@@ -1,0 +1,14 @@
+NEXORA AI 6.5 - CORRECCION DEL ERROR 404 /api/receptionist
+
+CONTENIDO: panel.html, panel.js, panel.css, api/receptionist.js, setup-6.5.sql
+
+1) Descomprime este ZIP en tu computadora.
+2) En GitHub, SUBE panel.html, panel.js y panel.css a la RAIZ del repositorio. Reemplaza los existentes.
+3) ENTRA PRIMERO a la carpeta api/ de GitHub. Alli sube receptionist.js. Debe quedar api/receptionist.js (NO en la raiz y NO en api/api/).
+4) No reemplaces api/chat.js, auth.js ni variables de entorno.
+5) Si YA ejecutaste setup-6.5.sql correctamente, NO necesitas ejecutarlo otra vez.
+6) Espera el despliegue Ready de Vercel. Abre la URL del despliegue nuevo, no una URL antigua.
+7) En ese mismo dominio, inicia sesion en chat.html, abre panel.html y prueba Recepcionista.
+8) Si visitas /api/receptionist en el navegador con GET, deberia responder JSON con Metodo no permitido (405). Eso confirma que existe la ruta.
+
+NOTAS: La recepcionista es una prueba interna; aun no recibe WhatsApp, Messenger ni llamadas. No uses datos reales sensibles. Las reservas requieren confirmacion manual. La zona horaria de la agenda sigue dependiendo del navegador.
