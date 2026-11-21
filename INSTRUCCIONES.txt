@@ -1,0 +1,10 @@
+NEXORA 6.4 — PRUEBA INTERNA DE RECEPCIONISTA
+
+1. Sube panel.html, panel.js y panel.css a la RAÍZ de GitHub, reemplazando los existentes.
+2. No reemplaces otros archivos; no ejecutes SQL nuevo.
+3. Espera a que Vercel muestre Ready. Inicia sesión en chat.html si es necesario.
+4. Abre panel.html > Recepcionista. Registra antes un cliente de prueba en Clientes.
+5. Escribe: Quiero una consulta mañana a las 4:00 pm. Pulsa Analizar solicitud.
+6. Selecciona el cliente, verifica fecha/hora y pulsa Confirmar. Comprueba la cita en Agenda y en nexora_bookings.
+
+LIMITACIONES: Esta etapa NO usa todavía un modelo de IA, WhatsApp, Messenger ni llamadas. El parser entiende hoy, mañana, pasado mañana y fechas AAAA-MM-DD, además de horas sencillas. Requiere confirmación humana. La zona horaria es la del navegador; antes de operar con clientes reales hay que incorporar zona horaria por negocio y pruebas de seguridad RLS. La restricción de solapamiento existente en Supabase protege citas simultáneas con el mismo recurso (respetando la comparación exacta del nombre).
