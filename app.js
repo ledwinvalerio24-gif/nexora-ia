@@ -250,8 +250,11 @@ async function send(text) {
       headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token},
       body:JSON.stringify({conversationId:chatId})
     });
-    const data = await response.json();
-    if (!response.ok) throw Error(data.error || 'Error de IA');
+    const raw = await response.text();
+    let data;
+    try { data = JSON.parse(raw); } catch { throw Error('El servidor devolvió una respuesta no válida (HTTP ' + response.status + '). Revisa Vercel Logs.'); }
+    if (!response.ok) throw Error(data.error || 'Error de IA (HTTP ' + response.status + ')');
+    if (typeof data.reply !== 'string' || !data.reply.trim()) throw Error('La IA devolvió una respuesta vacía.');
     if (owner !== window.nexoraUserId) return;
     chat.messages.push({id:uuid(), role:'assistant', content:data.reply});
     notify('Respuesta guardada en tu historial privado.');

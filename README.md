@@ -1,36 +1,45 @@
-# Nexora AI 5.2 — Gemini + Supabase
+# Nexora AI 5.2 — OpenRouter + Supabase
 
-Actualización del proyecto 5.1. Incluye interfaz existente, autenticación con Supabase, IA Gemini en función Vercel y conversaciones privadas en Postgres protegidas con RLS.
+Proyecto revisado y corregido a partir del ZIP original. Mantiene interfaz, registro e inicio de sesión, historial privado y renderizado seguro de respuestas Markdown.
 
-## 1. Subir a GitHub
-Sube **los archivos que están dentro de esta carpeta** a la raíz del repositorio. Conserva `api/`, `supabase/`, `index.html`, `auth.js`, `app.js`, `styles.css` y `vercel.json`. No subas credenciales ni un archivo `.env`.
+## Subir a GitHub
 
-## 2. Preparar Supabase
-En Supabase > SQL Editor, pega y ejecuta TODO `supabase/setup.sql`. Esto crea tablas `conversations`, `messages`, `ai_usage`, políticas RLS y la función de cuotas. Si no se ejecuta el SQL, el historial y el chat NO funcionarán.
-En Authentication > URL Configuration configura tu dominio de Production y redirects autorizados. Mantén Email Provider y Confirm email habilitados.
+Sube el **contenido de esta carpeta** a la raíz del repositorio, conservando la carpeta `api/`. En GitHub, reemplaza los archivos existentes y elimina `index (1).html` si todavía aparece. El archivo que sirve Vercel es `index.html`. No subas claves privadas.
 
-## 3. Variables de entorno en Vercel (Production)
-- `SUPABASE_URL`: `https://TU-PROYECTO.supabase.co` (sin `/rest/v1/`)
-- `SUPABASE_ANON_KEY`: clave **publishable** (`sb_publishable_...`) de ESE proyecto. Ya estaba configurada en 5.1.
-- `GEMINI_API_KEY`: clave privada de Gemini autorizada, solo en Vercel, **nunca en GitHub ni navegador**.
-- `GEMINI_MODEL`: opcional, por defecto `gemini-2.5-flash`. Comprueba en AI Studio qué modelos y cuotas están disponibles en tu cuenta.
+## Variables de Vercel → Settings → Environment Variables
 
-Luego Redeploy de Production. No pongas `sb_secret_` ni `service_role` en el frontend. `/api/public-config` expone solamente datos públicos de Supabase.
+Configura estas variables para **Production**:
 
-## 4. Probar
-1. Abre la app y entra a tu cuenta ya verificada.
-2. Envía un mensaje. La respuesta de Gemini puede tardar unos segundos.
-3. Recarga la página: el historial debería persistir.
-4. Prueba otra cuenta para comprobar que no ve el historial de la primera.
-5. Si falla, revisa Vercel > Logs, las tablas y políticas de Supabase, el modelo y la cuota de Gemini.
+- `SUPABASE_URL`: `https://TU-PROYECTO.supabase.co`
+- `SUPABASE_ANON_KEY`: clave pública `sb_publishable_...` o `eyJ...`
+- `OPENROUTER_API_KEY`: clave secreta de OpenRouter. No poner en HTML, JavaScript del navegador ni GitHub.
+- `OPENROUTER_MODEL` (opcional): por defecto `openrouter/free`. Puedes elegir un identificador válido habilitado para tu cuenta.
 
-## Notas importantes
-- El nivel gratuito de Gemini **no es ilimitado** y depende del modelo, región y cuenta. Revisa las condiciones de privacidad y uso de datos del proveedor antes de enviar información personal.
-- El backend valida la sesión con Supabase Auth, consulta conversaciones bajo RLS y nunca expone GEMINI_API_KEY.
-- Cuotas por cuenta: máximo **30 respuestas al día y 5 por minuto** (controladas atómicamente en Supabase). Los límites de Gemini son independientes y pueden ser más restrictivos. No sustituye protecciones antiabuso a escala de producción.
-- El frontend utiliza el cliente Supabase importado desde esm.sh; necesita conexión a Internet.
-- El chat envía a Gemini hasta los últimos 20 mensajes de la conversación. Las conversaciones se guardan en Supabase. Al borrar historial se eliminan sus mensajes por cascada.
-- El esquema permite a los usuarios insertar mensajes con rol `assistant` en sus propias conversaciones; no se debe tratar el historial como un registro de auditoría fiable.
-- Si el servidor Gemini falla tras guardar el mensaje del usuario, este queda en historial; puedes enviar un nuevo mensaje para continuar.
-- El historial local de la versión 5.1 **no se migra automáticamente**.
-- Usa una cuenta y credenciales con acceso autorizado al proveedor. No compartas contraseñas ni claves.
+**Importante:** La clave OpenRouter debe estar habilitada y con un límite de gasto compatible con el uso previsto. Una clave con límite de crédito total 0 puede rechazar solicitudes. Los modelos gratuitos pueden tener límites o no estar disponibles temporalmente.
+
+Después de guardar variables, realiza **Redeploy** de Production.
+
+## Base de datos
+
+Si ya ejecutaste `setup.sql` y el historial funciona, no hace falta volver a crear las tablas. Si es una instalación nueva, ejecuta `setup.sql` en Supabase → SQL Editor. Configura las URL de redirección en Supabase Auth.
+
+## Pruebas
+
+1. Abre el dominio de Production, actualiza con Ctrl+F5 y entra con tu cuenta.
+2. Envía `Hola Nexora, preséntate en una frase`.
+3. Comprueba que llega la respuesta y que sigue ahí tras recargar.
+4. Comprueba que otra cuenta no ve las conversaciones anteriores.
+5. Si falla, abre Vercel → Logs → `/api/chat` y revisa el código HTTP y el mensaje.
+
+## Cambios de esta corrección
+
+- Reparada la llave duplicada en `api/chat.js` que causaba `SyntaxError: Unexpected token '}'`.
+- Aumentado a 45 segundos el timeout de OpenRouter.
+- Mensaje específico si el modelo de OpenRouter no existe (404).
+- Frontend tolera respuestas no JSON del servidor y muestra un error entendible.
+- Eliminada la página HTML duplicada que no se utiliza.
+- Actualizadas las etiquetas visibles para indicar OpenRouter en lugar de Gemini.
+
+## Seguridad y limitaciones
+
+La clave privada solo se usa en `api/chat.js` en Vercel. Las consultas de historial usan el token de la sesión Supabase y las políticas RLS. `setup.sql` aplica cuotas de 30 solicitudes por día y 5 por minuto por usuario. El proveedor puede imponer límites adicionales. Este ZIP pasa verificaciones locales de sintaxis y estructura, pero para confirmar el servicio completo hay que desplegarlo con las credenciales reales.

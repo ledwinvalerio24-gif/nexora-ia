@@ -147,7 +147,7 @@ module.exports = async function handler(req, res) {
     const model = process.env.OPENROUTER_MODEL || 'openrouter/free';
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), 45000);
 
     let response;
     let data;
@@ -196,7 +196,6 @@ No inventes información cuando no sepas algo.
 
 Tu objetivo es ofrecer una experiencia útil,
 agradable y personalizada.`
-},
               },
               ...messages.map(m => ({
                 role: m.role,
@@ -231,6 +230,10 @@ agradable y personalizada.`
         return send(res, 503, {
           error: 'El modelo requiere créditos. Revisa el modelo gratuito.'
         });
+      }
+
+      if (response.status === 404) {
+        return send(res, 502, { error: 'Modelo de OpenRouter no disponible. Revisa OPENROUTER_MODEL.' });
       }
 
       if (response.status === 429) {
