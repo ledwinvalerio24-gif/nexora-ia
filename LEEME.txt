@@ -1,0 +1,18 @@
+NEXORA AI 6.2 — PANEL DE NEGOCIOS (PROTOTIPO)
+
+Archivos: panel.html, panel.css, panel.js
+
+INSTALACIÓN SIN ROMPER LA APP EXISTENTE
+1. Abre tu repositorio de GitHub, en la rama main y en la raíz (junto a index.html).
+2. Usa Add file > Upload files para subir SOLO los tres archivos panel.html, panel.css y panel.js.
+3. Confirma el commit y espera a que Vercel termine el despliegue.
+4. Abre https://TU-DOMINIO.vercel.app/panel.html
+5. En 'Clientes', registra un cliente de prueba; en 'Agenda', crea una cita.
+
+IMPORTANTE
+- Este es un prototipo funcional local. Guarda los datos SOLO en el localStorage de ese navegador.
+- NO está conectado a Supabase, WhatsApp, Messenger, llamadas, ni a la IA.
+- No uses datos reales/sensibles de clientes todavía. La información puede perderse si borras datos del navegador.
+- El calendario es una lista de citas con fecha y hora; una vista mensual visual se puede agregar después.
+- En la siguiente etapa se integrarán tablas multiempresa con políticas RLS, autenticación y API de reservas.
+- No subas archivos en una carpeta duplicada 'nexora-ia-main'. Deben quedar en la raíz del repositorio.
