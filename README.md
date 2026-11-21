@@ -1,14 +1,18 @@
-# Nexora AI 5.0
-Aplicación web estática en español, sin dependencias externas.
+# Nexora AI 5.1 — Supabase Auth
 
-## Contenido
-- index.html: interfaz
-- styles.css: diseño responsive
-- app.js: chat de demostración e historial local
-- vercel.json: configuración de despliegue
+Proyecto estático para Vercel con función `/api/public-config` y autenticación real de Supabase.
 
-## Uso
-Abre index.html en el navegador para probarla. Para publicarla en Vercel, importa una carpeta o repositorio con estos archivos en la raíz y selecciona Framework Preset: Other. No requiere variables de entorno ni comando de compilación.
+## Despliegue
+1. Sube **el contenido de esta carpeta** a la raíz de tu repositorio GitHub (no la carpeta contenedora).
+2. En Vercel → Settings → Environment Variables configura `SUPABASE_URL` (URL HTTPS del proyecto) y `SUPABASE_ANON_KEY` (publishable key `sb_publishable_...`). No uses `sb_secret_`.
+3. Redeploy de Production y abre `/api/public-config` para verificar que responde JSON con URL y publishable key (ambos datos son públicos).
+4. En Supabase → Authentication → URL Configuration añade la URL pública y `https://tu-dominio.vercel.app/**` a redirects. En Email activa Confirm email.
+5. Prueba crear cuenta, confirmar email, iniciar y cerrar sesión.
 
-## Importante
-Este proyecto es una reconstrucción nueva, no una copia recuperada de una versión anterior. El chatbot es una demostración basada en respuestas locales, no está conectado a un modelo de IA. Los chats se guardan únicamente en localStorage de este navegador; no hay registro de cuentas ni sincronización entre dispositivos. Para habilitar respuestas de IA reales, integra una función de servidor que mantenga las claves API fuera del navegador.
+## Alcance y seguridad
+- **El registro e inicio de sesión sí usan Supabase Auth.**
+- El chatbot sigue en **modo demostración**; no hay IA generativa conectada.
+- El historial se guarda **solo en el navegador**, separado por ID de usuario; no se sincroniza entre dispositivos y no es almacenamiento privado robusto para datos sensibles. Para conversaciones en la nube se necesitarán tablas y políticas RLS por usuario.
+- La publishable key puede estar en el navegador; las tablas deben tener RLS y políticas correctas. Nunca publiques `sb_secret_` ni `service_role`.
+- Si la confirmación de email falla, revisa los ajustes de URL y los límites de envío de emails de Supabase.
+- El inicio de sesión requiere conexión a Internet y acceso a esm.sh.
