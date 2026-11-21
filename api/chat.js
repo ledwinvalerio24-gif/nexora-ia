@@ -1,129 +1,229 @@
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-export default async function handler(req, res) {
-  res.setHeader("Cache-Control", "no-store");
+'use strict';
 
-  if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Método no permitido"
+const base = () =>
+  String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+
+const publicKey = () => process.env.SUPABASE_ANON_KEY || '';
+
+const json = (res, status, body) =>
+  res.status(status).json(body);
+
+async function sb(path, token, options = {}) {
+  const response = await fetch(base() + path, {
+    ...options,
+    headers: {
+      apikey: publicKey(),
+      Authorization: 'Bearer ' + token,
+      ...options.headers
+    }
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw Object.assign(
+      new Error(data?.message || data?.msg || 'Error de Supabase'),
+      { status: response.status }
+    );
+  }
+
+  return data;
+}
+
+module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+
+  if (req.method !== 'POST') {
+    return json(res, 405, { error: 'Método no permitido' });
+  }
+
+  if (!process.env.GEMINI_API_KEY || !base() || !publicKey()) {
+    return json(res, 503, {
+      error: 'Faltan variables de entorno en Vercel.'
     });
+  }
+
+  const token = /^Bearer (.+)$/i.exec(
+    req.headers.authorization || ''
+  )?.[1];
+
+  if (!token || token.length > 4096) {
+    return json(res, 401, { error: 'Inicia sesión.' });
+  }
+
+  const conversationId = req.body?.conversationId;
+
+  if (
+    typeof conversationId !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(conversationId)
+  ) {
+    return json(res, 400, { error: 'Conversación inválida.' });
   }
 
   try {
-    if (!SUPABASE_URL || !SUPABASE_KEY || !GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: "Faltan variables de entorno"
-      });
+    const user = await sb('/auth/v1/user', token);
+
+    if (!user?.id) {
+      return json(res, 401, { error: 'Sesión no válida.' });
     }
 
-    const token = (req.headers.authorization || "")
-      .match(/^Bearer (.+)$/i)?.[1];
-
-    if (!token) {
-      return res.status(401).json({
-        error: "Debes iniciar sesión"
-      });
-    }
-
-    const authResponse = await fetch(
-      `${SUPABASE_URL.replace(/\/$/, "")}/auth/v1/user`,
-      {
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${token}`
-        }
-      }
+    const rows = await sb(
+      '/rest/v1/conversations?id=eq.' +
+      encodeURIComponent(conversationId) +
+      '&select=id,user_id',
+      token
     );
 
-    if (!authResponse.ok) {
-      return res.status(401).json({
-        error: "Sesión inválida o expirada"
+    if (!rows?.length || rows[0].user_id !== user.id) {
+      return json(res, 404, {
+        error: 'Conversación no encontrada.'
       });
     }
 
-    const user = await authResponse.json();
+    const history = await sb(
+      '/rest/v1/messages?conversation_id=eq.' +
+      encodeURIComponent(conversationId) +
+      '&select=role,content,created_at&order=created_at.desc&limit=20',
+      token
+    );
 
-    if (!user.id) {
-      return res.status(401).json({
-        error: "Usuario no válido"
+    const ordered = history.reverse().filter(
+      x =>
+        ['user', 'assistant'].includes(x.role) &&
+        typeof x.content === 'string'
+    );
+
+    if (!ordered.length || ordered.at(-1).role !== 'user') {
+      return json(res, 400, {
+        error: 'Escribe un mensaje antes de pedir una respuesta.'
       });
     }
 
-    const body = typeof req.body === "string"
-      ? JSON.parse(req.body)
-      : req.body || {};
-
-    const message = body.message;
-
-    if (typeof message !== "string" || !message.trim()) {
-      return res.status(400).json({
-        error: "Escribe un mensaje"
+    if (ordered.at(-1).content.length > 4000) {
+      return json(res, 400, {
+        error: 'Mensaje demasiado largo.'
       });
     }
 
-    if (message.length > 12000) {
-      return res.status(413).json({
-        error: "Mensaje demasiado largo"
+    await sb('/rest/v1/rpc/consume_ai_quota', token, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+    if (!/^gemini-[a-z0-9.-]+$/.test(model)) {
+      return json(res, 503, {
+        error: 'Modelo Gemini inválido.'
       });
     }
 
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 24000);
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": GEMINI_API_KEY
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: message.trim() }]
+    let response;
+    let answer;
+
+    try {
+      response = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/' +
+        model + ':generateContent',
+        {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': process.env.GEMINI_API_KEY
+          },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{
+                text: 'Eres Nexora, un asistente útil, claro y amigable. Responde en el idioma del usuario.'
+              }]
+            },
+            contents: ordered.map(x => ({
+              role: x.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: x.content.slice(0, 4000) }]
+            })),
+            generationConfig: {
+              maxOutputTokens: 900,
+              temperature: 0.7
             }
-          ],
-          generationConfig: {
-            maxOutputTokens: 1024
-          }
-        })
-      }
-    );
+          })
+        }
+      );
 
-    if (!geminiResponse.ok) {
-      console.error("Gemini HTTP status:", geminiResponse.status);
+      answer = await response.json().catch(() => ({}));
+    } finally {
+      clearTimeout(timer);
+    }
 
-      return res.status(502).json({
-        error: "No se pudo obtener respuesta de Gemini"
+    if (!response.ok) {
+      console.error('Gemini status:', response.status);
+
+      return json(res, response.status === 429 ? 429 : 502, {
+        error: response.status === 429
+          ? 'Gemini alcanzó su límite de solicitudes.'
+          : 'Gemini no pudo responder. Revisa la clave y el modelo.'
       });
     }
 
-    const data = await geminiResponse.json();
-
-    const reply = data.candidates?.[0]?.content?.parts
-      ?.filter(part => typeof part.text === "string")
-      .map(part => part.text)
-      .join("") || "";
+    const reply = (
+      answer.candidates?.[0]?.content?.parts || []
+    ).map(p => p.text || '').join('').trim();
 
     if (!reply) {
-      return res.status(502).json({
-        error: "Gemini no devolvió texto"
+      return json(res, 502, {
+        error: 'Gemini no devolvió texto.'
       });
     }
 
-    return res.status(200).json({
-      reply,
-      response: reply
+    await sb('/rest/v1/messages', token, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        user_id: user.id,
+        role: 'assistant',
+        content: reply.slice(0, 12000)
+      })
+    });
+
+    return json(res, 200, {
+      reply: reply.slice(0, 12000)
     });
 
   } catch (error) {
-    console.error("Nexora API error:", error.message);
+    if (error.name === 'AbortError') {
+      return json(res, 504, {
+        error: 'La IA tardó demasiado.'
+      });
+    }
 
-    return res.status(500).json({
-      error: "Error interno de Nexora"
+    if (error.status === 401) {
+      return json(res, 401, {
+        error: 'Tu sesión expiró.'
+      });
+    }
+
+    if (
+      error.status === 429 ||
+      /Usage limit reached/i.test(error.message)
+    ) {
+      return json(res, 429, {
+        error: 'Límite de mensajes alcanzado.'
+      });
+    }
+
+    console.error('Chat server error:', error.status || error.message);
+
+    return json(res, 500, {
+      error: 'No se pudo completar la solicitud.'
     });
   }
-}
+};
