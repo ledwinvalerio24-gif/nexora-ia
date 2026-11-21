@@ -1,0 +1,32 @@
+NEXORA AI 6.6 - RECEPCIONISTA CON CONTEXTO
+
+INSTALACION
+1. Descarga y descomprime este ZIP.
+2. En GitHub reemplaza panel.html y panel.js en la raiz, y api/receptionist.js dentro de api/.
+3. Conserva los demas archivos de tu repositorio. NO subas la carpeta anidada nexora-ia-main.
+4. Haz Commit changes y espera a Vercel Ready.
+5. Abre /panel, entra en Recepcionista y prueba varios mensajes consecutivos.
+
+No hay SQL nuevo. Las citas y clientes existentes permanecen en Supabase.
+
+NOVEDADES
+- Contexto de los ultimos 12 mensajes de la sesion actual.
+- Boton Nueva conversacion.
+- Propuesta que conserva datos anteriores cuando el cliente completa informacion.
+- Separacion explicita entre propuesta y reserva guardada.
+- La base de datos existente ya incluye una exclusion de solapamientos por negocio y recurso.
+
+LIMITACIONES IMPORTANTES
+- No recibe WhatsApp, Messenger ni llamadas.
+- La conversacion solo se mantiene mientras la pagina permanezca abierta.
+- La fecha/hora del formulario se interpreta segun el navegador; aun no se convierte desde la zona horaria del negocio.
+- El texto libre de horario de atencion no se valida automaticamente.
+- No hay confirmacion automatica del cliente; el operador debe obtenerla y pulsar guardar.
+- La disponibilidad no se consulta durante el chat; la base de datos rechaza solapamientos al intentar guardar.
+- Usa mensajes de prueba y no introduzcas datos personales sensibles.
+
+PRUEBA
+Mensaje 1: Quiero una cita el martes.
+Mensaje 2: A las 12.
+Mensaje 3: Para un corte de cabello.
+Revisa la propuesta, selecciona un cliente de prueba, confirma manualmente y guarda.

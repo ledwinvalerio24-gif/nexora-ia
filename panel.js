@@ -1,5 +1,5 @@
 'use strict';
-// Nexora 6.4: datos en Supabase, aislados por propietario (RLS).
+// Nexora 6.6: datos en Supabase, aislados por propietario (RLS).
 // Los datos antiguos en localStorage NO se borran ni se importan automáticamente.
 const $=id=>document.getElementById(id);
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -40,28 +40,43 @@ function parseRequest(text){
  let service='';const m=t.match(/(?:quiero|necesito|reservar|agendar|solicito|para)\s+(?:una?|el|la)?\s*(consulta|corte|reparacion|revision|limpieza|asesoria|clase|sesion|cita)(?:\s+([a-z]+))?/);if(m)service=m[1]+(m[2]&& !['hoy','manana','para','el','la','a','de'].includes(m[2])?' '+m[2]:'');
  return {date,time,service};
 }
+// Historial de la sesión actual: no se guarda en localStorage ni se comparte entre negocios.
+let receptionHistory=[];
+let receptionDraft={date:'',time:'',service:''};
+function resetReception(){
+ receptionHistory=[];receptionDraft={date:'',time:'',service:''};
+ $('requestProposal').hidden=true;$('aiAnswer').hidden=true;$('requestText').value='';
+ $('receptionHistory').textContent='';$('requestNotice').textContent='Nueva conversación lista.';
+}
+$('resetReception').addEventListener('click',resetReception);
+function drawHistory(){
+ $('receptionHistory').textContent=`Conversación actual: ${Math.floor(receptionHistory.length/2)} intercambio(s). No se almacena al cerrar la página.`;
+}
 $('analyzeRequest').addEventListener('click',async()=>{
  const notice=$('requestNotice'),raw=$('requestText').value.trim(),answer=$('aiAnswer'),button=$('analyzeRequest');
- $('requestProposal').hidden=true;answer.hidden=true;
+ $('requestProposal').hidden=true;
  if(!raw){notice.textContent='Escribe primero un mensaje.';return}
  try{
   ensureReady();button.disabled=true;notice.textContent='Nexora está preparando una respuesta…';
   const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw Error('Inicia sesión otra vez.');
-  const r=await fetch('/api/receptionist',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({message:raw,businessId:business.id})});
+  const r=await fetch('/api/receptionist',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({message:raw,businessId:business.id,history:receptionHistory.slice(-12)})});
   const contentType=r.headers.get('content-type')||'';
   if(!contentType.includes('application/json')){
-    const body=await r.text();
-    if(r.status===404)throw Error('La API /api/receptionist no existe en este despliegue. Comprueba api/receptionist.js en GitHub y espera Vercel Ready.');
-    throw Error(`La API devolvió HTTP ${r.status} en lugar de JSON. Revisa Vercel → Logs. ${body.slice(0,90)}`);
+    if(r.status===404)throw Error('Falta /api/receptionist en Vercel. Comprueba la carpeta api.');
+    throw Error(`La API devolvió HTTP ${r.status} en lugar de JSON. Consulta los registros de Vercel.`);
   }
   const result=await r.json();if(!r.ok)throw Error(result.error||`Error HTTP ${r.status} al consultar la IA.`);
+  if(typeof result.reply!=='string'||!result.reply.trim())throw Error('La IA no generó una respuesta válida.');
   answer.textContent=result.reply;answer.hidden=false;
+  receptionHistory.push({role:'user',content:raw},{role:'assistant',content:result.reply});
+  receptionHistory=receptionHistory.slice(-12);drawHistory();$('requestText').value='';
   const proposal=result.proposal||{};
   if(proposal.intent==='booking'){
-   $('requestDate').value=proposal.date||'';$('requestTime').value=proposal.time||'';$('requestService').value=proposal.service||'';
+   receptionDraft={date:proposal.date||receptionDraft.date,time:proposal.time||receptionDraft.time,service:proposal.service||receptionDraft.service};
+   $('requestDate').value=receptionDraft.date;$('requestTime').value=receptionDraft.time;$('requestService').value=receptionDraft.service;
    $('requestProposal').hidden=false;
-   notice.textContent='Propuesta de reserva: completa los campos que falten, revisa la zona horaria y confirma manualmente.';
-  }else notice.textContent='Respuesta sugerida por IA. No se creó ninguna reserva.';
+   notice.textContent='Propuesta sin confirmar: completa los datos, consulta con el cliente y verifica disponibilidad al guardar.';
+  }else notice.textContent='Respuesta de prueba. No se ha creado ninguna reserva.';
  }catch(err){notice.textContent=errorMessage(err)}finally{button.disabled=false}
 });
 $('requestForm').addEventListener('submit',async e=>{
@@ -74,6 +89,6 @@ $('requestForm').addEventListener('submit',async e=>{
   if(!Number.isFinite(startDate.getTime())||startDate.getTime()<Date.now()||!Number.isInteger(duration_minutes)||duration_minutes<15||duration_minutes>480||!resource||!service)throw Error('Revisa fecha futura, hora, duración, recurso y servicio.');
   const {error}=await sb.from('nexora_bookings').insert({business_id:business.id,client_id,service,start_at:startDate.toISOString(),duration_minutes,resource});
   if(error)throw error;
-  await refresh();$('requestProposal').hidden=true;$('requestText').value='';n.textContent='Reserva confirmada y guardada en Supabase. Revisa la sección Agenda.';
+  await refresh();$('requestProposal').hidden=true;receptionDraft={date:'',time:'',service:''};n.textContent='Reserva guardada en Supabase tras la confirmación manual. Revisa la sección Agenda.';
  }catch(err){n.textContent=errorMessage(err)}
 });

@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nexora 6.5 | Gestión de negocios</title>
+<title>Nexora 6.6 | Gestión de negocios</title>
 <link rel="stylesheet" href="panel.css">
 </head>
 <body>
 <div class="shell">
 <aside>
-<div class="brand">✦ Nexora <small>6.5 · Business</small></div>
+<div class="brand">✦ Nexora <small>6.6 · Business</small></div>
 <a href="/index.html" style="display:block;margin:18px 0 12px;padding:12px 14px;border:1px solid rgba(119,170,255,.4);border-radius:12px;background:rgba(58,111,224,.15);color:#e9f1ff;text-decoration:none;font-weight:700;">🏠 Volver al inicio ↗</a>
 <nav>
 <button data-tab="dashboard" class="selected">▦ Resumen</button>
@@ -34,7 +34,7 @@
 <section id="recepcion" class="page hidden">
 <div class="panel"><h2>🤖 Recepcionista · Prueba interna</h2><p class="muted">Pega un mensaje de solicitud de cita. Este módulo usa IA para responder preguntas y sugerir reservas. No recibe mensajes externos. Comprueba los datos antes de guardar. Revisa la propuesta antes de confirmarla.</p>
 <label for="requestText">Mensaje recibido</label><textarea id="requestText" rows="4" maxlength="1000" placeholder="Ej. Hola, quiero una consulta mañana a las 4:00 pm" style="width:100%;box-sizing:border-box;background:#0c1731;color:white;border:1px solid #3c5688;border-radius:10px;padding:14px;font:inherit;"></textarea>
-<div class="panel-answer" id="aiAnswer" aria-live="polite" hidden></div><div style="margin-top:12px"><button id="analyzeRequest" class="nexora-action" type="button">Analizar solicitud</button></div><p id="requestNotice" class="note" role="status"></p></div>
+<div class="panel-answer" id="aiAnswer" aria-live="polite" hidden></div><div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px"><button id="analyzeRequest" class="nexora-action" type="button">Enviar a Nexora</button><button id="resetReception" type="button">Nueva conversación</button></div><div id="receptionHistory" class="muted" aria-live="polite"></div><p id="requestNotice" class="note" role="status"></p></div>
 <div class="panel" id="requestProposal" hidden><h2>Revisar reserva propuesta</h2><form id="requestForm" class="grid">
 <label>Cliente registrado<select id="requestClient" required></select></label>
 <label>Servicio<input id="requestService" maxlength="100" required></label>
@@ -43,7 +43,7 @@
 <label>Duración (min)<input id="requestDuration" type="number" min="15" max="480" step="15" value="60" required></label>
 <label>Empleado o recurso<input id="requestResource" maxlength="80" value="Principal" required></label>
 <button type="submit">✓ Confirmar y guardar en Supabase</button></form>
-<p class="muted">La reserva solo se crea cuando pulsas confirmar. Para nuevos clientes, regístralos primero en la sección Clientes.</p></div></section>
+<p class="muted">La propuesta no garantiza disponibilidad. Supabase impide solapamientos al guardar. Confirma los datos y solicita la autorización del cliente antes de pulsar guardar. La reserva solo se crea cuando pulsas confirmar. Para nuevos clientes, regístralos primero en la sección Clientes.</p></div></section>
 <section id="config" class="page hidden"><div class="panel"><h2>Configuración del negocio</h2><form id="businessForm" class="grid"><label>Nombre del negocio<input id="businessName" required maxlength="100" placeholder="Mi negocio"></label><label>Tipo de negocio<select id="businessType"><option value="general">Servicios generales</option><option value="belleza">Belleza y bienestar</option><option value="salud">Salud y consultas</option><option value="automotriz">Automotriz</option><option value="educacion">Educación</option><option value="hogar">Servicios del hogar</option><option value="otro">Otro</option></select></label><label>Zona horaria (IANA)<input id="businessTimezone" maxlength="80" value="America/New_York" required placeholder="America/New_York"></label><label>Horario de atención (texto)<input id="businessHours" maxlength="500" placeholder="Lun-Vie 9:00-18:00; Sáb 10:00-14:00"></label><label class="wide">Servicios y precios (uno por línea)<textarea id="businessServices" rows="6" maxlength="4000" placeholder="Corte | $25 | 30 minutos&#10;Consulta | $40 | 60 minutos"></textarea></label><label class="wide">Indicaciones de atención<textarea id="businessInstructions" rows="3" maxlength="1500" placeholder="Atendemos solo con cita previa"></textarea></label><button type="submit">Guardar configuración</button></form><p class="note" id="businessNotice" role="status"></p></div><div class="panel"><h2>Automatizaciones</h2><p>La recepcionista puede responder preguntas de prueba mediante OpenRouter. WhatsApp, Messenger y llamadas todavía no están conectados. Las reservas requieren confirmación manual.</p></div></section>
 </main>
 </div>
