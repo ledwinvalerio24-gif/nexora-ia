@@ -1,20 +1,20 @@
 
 'use strict';
 
-const base = () =>
-  String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || '';
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '';
 
-const publicKey = () => process.env.SUPABASE_ANON_KEY || '';
+function send(res, status, body) {
+  return res.status(status).json(body);
+}
 
-const json = (res, status, body) =>
-  res.status(status).json(body);
-
-async function sb(path, token, options = {}) {
-  const response = await fetch(base() + path, {
+async function supabase(path, token, options = {}) {
+  const response = await fetch(SUPABASE_URL + path, {
     ...options,
     headers: {
-      apikey: publicKey(),
-      Authorization: 'Bearer ' + token,
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${token}`,
       ...options.headers
     }
   });
@@ -22,25 +22,27 @@ async function sb(path, token, options = {}) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw Object.assign(
-      new Error(data?.message || data?.msg || 'Error de Supabase'),
-      { status: response.status }
+    const error = new Error(
+      data?.message || data?.msg || data?.error ||
+      'Error de Supabase'
     );
+    error.status = response.status;
+    throw error;
   }
 
   return data;
 }
 
-module.exports = async (req, res) => {
+module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') {
-    return json(res, 405, { error: 'Método no permitido' });
+    return send(res, 405, { error: 'Método no permitido.' });
   }
 
-  if (!process.env.GEMINI_API_KEY || !base() || !publicKey()) {
-    return json(res, 503, {
-      error: 'Faltan variables de entorno en Vercel.'
+  if (!SUPABASE_URL || !SUPABASE_KEY || !OPENROUTER_KEY) {
+    return send(res, 503, {
+      error: 'Falta configurar OpenRouter o Supabase en Vercel.'
     });
   }
 
@@ -49,138 +51,183 @@ module.exports = async (req, res) => {
   )?.[1];
 
   if (!token || token.length > 4096) {
-    return json(res, 401, { error: 'Inicia sesión.' });
+    return send(res, 401, {
+      error: 'Inicia sesión para conversar.'
+    });
   }
 
-  const conversationId = req.body?.conversationId;
+  const body = typeof req.body === 'string'
+    ? (() => {
+        try { return JSON.parse(req.body); }
+        catch { return {}; }
+      })()
+    : req.body || {};
+
+  const conversationId = body.conversationId;
+
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   if (
     typeof conversationId !== 'string' ||
-    !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(conversationId)
+    !uuidPattern.test(conversationId)
   ) {
-    return json(res, 400, { error: 'Conversación inválida.' });
+    return send(res, 400, {
+      error: 'Conversación inválida.'
+    });
   }
 
   try {
-    const user = await sb('/auth/v1/user', token);
+    // Verificar identidad del usuario.
+    const user = await supabase('/auth/v1/user', token);
 
     if (!user?.id) {
-      return json(res, 401, { error: 'Sesión no válida.' });
+      return send(res, 401, {
+        error: 'Sesión inválida.'
+      });
     }
 
-    const rows = await sb(
+    // Comprobar que la conversación pertenece al usuario.
+    const conversations = await supabase(
       '/rest/v1/conversations?id=eq.' +
       encodeURIComponent(conversationId) +
       '&select=id,user_id',
       token
     );
 
-    if (!rows?.length || rows[0].user_id !== user.id) {
-      return json(res, 404, {
+    if (
+      !conversations?.length ||
+      conversations[0].user_id !== user.id
+    ) {
+      return send(res, 404, {
         error: 'Conversación no encontrada.'
       });
     }
 
-    const history = await sb(
+    // Recuperar los últimos mensajes.
+    const history = await supabase(
       '/rest/v1/messages?conversation_id=eq.' +
       encodeURIComponent(conversationId) +
-      '&select=role,content,created_at&order=created_at.desc&limit=20',
+      '&select=role,content,created_at' +
+      '&order=created_at.desc&limit=20',
       token
     );
 
-    const ordered = history.reverse().filter(
-      x =>
-        ['user', 'assistant'].includes(x.role) &&
-        typeof x.content === 'string'
+    const messages = history.reverse().filter(
+      m =>
+        ['user', 'assistant'].includes(m.role) &&
+        typeof m.content === 'string'
     );
 
-    if (!ordered.length || ordered.at(-1).role !== 'user') {
-      return json(res, 400, {
-        error: 'Escribe un mensaje antes de pedir una respuesta.'
+    if (
+      !messages.length ||
+      messages[messages.length - 1].role !== 'user'
+    ) {
+      return send(res, 400, {
+        error: 'Primero escribe un mensaje.'
       });
     }
 
-    if (ordered.at(-1).content.length > 4000) {
-      return json(res, 400, {
-        error: 'Mensaje demasiado largo.'
+    if (messages[messages.length - 1].content.length > 4000) {
+      return send(res, 413, {
+        error: 'El mensaje es demasiado largo.'
       });
     }
 
-    await sb('/rest/v1/rpc/consume_ai_quota', token, {
+    // Mantener el límite de uso existente.
+    await supabase('/rest/v1/rpc/consume_ai_quota', token, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: '{}'
     });
 
-    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-
-    if (!/^gemini-[a-z0-9.-]+$/.test(model)) {
-      return json(res, 503, {
-        error: 'Modelo Gemini inválido.'
-      });
-    }
+    // Usar el selector de modelos gratuitos de OpenRouter.
+    const model = process.env.OPENROUTER_MODEL || 'openrouter/free';
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 24000);
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
     let response;
-    let answer;
+    let data;
 
     try {
       response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/' +
-        model + ':generateContent',
+        'https://openrouter.ai/api/v1/chat/completions',
         {
           method: 'POST',
           signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
-            'x-goog-api-key': process.env.GEMINI_API_KEY
+            Authorization: `Bearer ${OPENROUTER_KEY}`
           },
           body: JSON.stringify({
-            systemInstruction: {
-              parts: [{
-                text: 'Eres Nexora, un asistente útil, claro y amigable. Responde en el idioma del usuario.'
-              }]
-            },
-            contents: ordered.map(x => ({
-              role: x.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: x.content.slice(0, 4000) }]
-            })),
-            generationConfig: {
-              maxOutputTokens: 900,
-              temperature: 0.7
-            }
+            model,
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'Eres Nexora, un asistente inteligente, ' +
+                  'creativo, claro y amigable. ' +
+                  'Responde en el idioma del usuario.'
+              },
+              ...messages.map(m => ({
+                role: m.role,
+                content: m.content.slice(0, 4000)
+              }))
+            ],
+            max_tokens: 700,
+            temperature: 0.7
           })
         }
       );
 
-      answer = await response.json().catch(() => ({}));
+      data = await response.json().catch(() => ({}));
     } finally {
-      clearTimeout(timer);
+      clearTimeout(timeout);
     }
 
     if (!response.ok) {
-      console.error('Gemini status:', response.status);
+      console.error('OpenRouter status:', response.status);
+      console.error(
+        'OpenRouter error:',
+        String(data?.error?.message || 'Sin detalles').slice(0, 500)
+      );
 
-      return json(res, response.status === 429 ? 429 : 502, {
-        error: response.status === 429
-          ? 'Gemini alcanzó su límite de solicitudes.'
-          : 'Gemini no pudo responder. Revisa la clave y el modelo.'
+      if (response.status === 401 || response.status === 403) {
+        return send(res, 502, {
+          error: 'Revisa la configuración de OpenRouter.'
+        });
+      }
+
+      if (response.status === 402) {
+        return send(res, 503, {
+          error: 'El modelo requiere créditos. Revisa el modelo gratuito.'
+        });
+      }
+
+      if (response.status === 429) {
+        return send(res, 429, {
+          error: 'Límite de OpenRouter alcanzado. Inténtalo más tarde.'
+        });
+      }
+
+      return send(res, 502, {
+        error: 'OpenRouter no pudo responder. Revisa los registros.'
       });
     }
 
-    const reply = (
-      answer.candidates?.[0]?.content?.parts || []
-    ).map(p => p.text || '').join('').trim();
+    const reply = data?.choices?.[0]?.message?.content;
 
-    if (!reply) {
-      return json(res, 502, {
-        error: 'Gemini no devolvió texto.'
+    if (typeof reply !== 'string' || !reply.trim()) {
+      return send(res, 502, {
+        error: 'El modelo no devolvió una respuesta de texto.'
       });
     }
 
-    await sb('/rest/v1/messages', token, {
+    // Guardar respuesta en el historial privado.
+    await supabase('/rest/v1/messages', token, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -194,20 +241,20 @@ module.exports = async (req, res) => {
       })
     });
 
-    return json(res, 200, {
+    return send(res, 200, {
       reply: reply.slice(0, 12000)
     });
 
   } catch (error) {
     if (error.name === 'AbortError') {
-      return json(res, 504, {
-        error: 'La IA tardó demasiado.'
+      return send(res, 504, {
+        error: 'La IA tardó demasiado. Inténtalo de nuevo.'
       });
     }
 
     if (error.status === 401) {
-      return json(res, 401, {
-        error: 'Tu sesión expiró.'
+      return send(res, 401, {
+        error: 'Tu sesión expiró. Inicia sesión de nuevo.'
       });
     }
 
@@ -215,22 +262,17 @@ module.exports = async (req, res) => {
       error.status === 429 ||
       /Usage limit reached/i.test(error.message)
     ) {
-      return json(res, 429, {
+      return send(res, 429, {
         error: 'Límite de mensajes alcanzado.'
       });
     }
 
-    console.error('Gemini status:', response.status);
-console.error(
-  'Gemini error detail:',
-  JSON.stringify({
-    code: answer?.error?.code,
-    status: answer?.error?.status,
-    message: answer?.error?.message
-  }).slice(0, 1000)
-);
+    console.error(
+      'Nexora server error:',
+      error.status || error.message
+    );
 
-    return json(res, 500, {
+    return send(res, 500, {
       error: 'No se pudo completar la solicitud.'
     });
   }
