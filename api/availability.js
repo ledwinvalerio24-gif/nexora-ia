@@ -47,3 +47,6 @@ module.exports=async(req,res)=>{
     return respond(res,200,{available:!occupied,reason:occupied?'Ese empleado o recurso ya tiene una cita en ese horario.':'Horario disponible para revisión y confirmación.',startAt:start.toISOString()});
   }catch(e){console.error('Availability:',e.message);return respond(res,400,{error:'No se pudo comprobar el horario. Revisa la zona horaria y los datos del negocio.'})}
 };
+// Funciones compartidas por el flujo de reserva automática.
+module.exports.localToUTC=localToUTC;
+module.exports.parseHours=parseHours;

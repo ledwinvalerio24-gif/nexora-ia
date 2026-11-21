@@ -9,7 +9,7 @@ let sb=null,owner=null,business=null,clients=[],bookings=[];
 const status=document.createElement('p');status.setAttribute('role','status');status.className='note';
 $('heading').after(status);
 const setStatus=(s)=>{status.textContent=s};
-function show(tab){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==tab));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('selected',x.dataset.tab===tab));$('heading').textContent={dashboard:'Resumen',agenda:'Agenda',clientes:'Clientes',config:'Mi negocio',recepcion:'Recepcionista'}[tab];render()}
+function show(tab){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==tab));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('selected',x.dataset.tab===tab));$('heading').textContent={dashboard:'Resumen',agenda:'Agenda',clientes:'Clientes',config:'Mi negocio',recepcion:'Recepcionista',auto:'Reserva automática'}[tab];render()}
 document.querySelectorAll('[data-tab]').forEach(x=>x.addEventListener('click',()=>show(x.dataset.tab)));
 function bookingMarkup(b){const c=clients.find(x=>x.id===b.client_id);return `<div class="item"><div><b>${escape(b.service)}</b><small>${escape(c?.name||'Cliente eliminado')} · ${escape(fmt(b.start_at))} · ${b.duration_minutes} min · ${escape(b.resource)}</small></div><button data-delete-booking="${escape(b.id)}">Eliminar</button></div>`}
 function render(){const sorted=[...bookings].sort((a,b)=>a.start_at.localeCompare(b.start_at));$('totalBookings').textContent=bookings.length;$('totalClients').textContent=clients.length;$('todayBookings').textContent=bookings.filter(b=>{const d=new Date(b.start_at);return !isNaN(d)&&`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`===localDate()}).length;const upcoming=sorted.filter(b=>new Date(b.start_at).getTime()>=Date.now());$('upcoming').innerHTML=upcoming.length?upcoming.slice(0,6).map(bookingMarkup).join(''):'<p class="muted">No hay próximas citas.</p>';$('bookingList').innerHTML=sorted.length?sorted.map(bookingMarkup).join(''):'<p class="muted">Todavía no has creado citas.</p>';$('clientList').innerHTML=clients.length?clients.map(c=>`<div class="item"><div><b>${escape(c.name)}</b><small>${escape(c.phone||'Sin teléfono')} · ${escape(c.email||'Sin correo')}</small></div><button data-delete-client="${escape(c.id)}">Eliminar</button></div>`).join(''):'<p class="muted">Todavía no hay clientes.</p>';$('bookingClient').innerHTML='<option value="">Selecciona un cliente</option>'+clients.map(c=>`<option value="${escape(c.id)}">${escape(c.name)}</option>`).join('');$('requestClient').innerHTML='<option value="">Selecciona un cliente</option>'+clients.map(c=>`<option value="${escape(c.id)}">${escape(c.name)}</option>`).join('');if(business){$('businessName').value=business.name;$('businessType').value=business.type;$('businessTimezone').value=business.timezone||'America/New_York';$('businessHours').value=business.opening_hours||'';$('businessServices').value=business.services_text||'';$('businessInstructions').value=business.instructions||''}}
@@ -91,4 +91,19 @@ $('requestForm').addEventListener('submit',async e=>{
   if(error)throw error;
   await refresh();$('requestProposal').hidden=true;receptionDraft={date:'',time:'',service:''};n.textContent='Reserva guardada en Supabase tras la confirmación manual. Revisa la sección Agenda.';
  }catch(err){n.textContent=errorMessage(err)}
+});
+
+// Nexora 6.8: reserva automática de prueba tras consentimiento explícito del cliente simulado.
+$('autoDate').min=localDate();
+$('autoForm').addEventListener('submit',async e=>{
+ e.preventDefault();const n=$('autoNotice'),button=e.target.querySelector('button[type="submit"]');
+ try{
+  ensureReady();button.disabled=true;n.textContent='Verificando horario y creando la reserva…';
+  const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw Error('Inicia sesión de nuevo.');
+  const payload={businessId:business.id,clientName:$('autoName').value.trim(),service:$('autoService').value.trim(),date:$('autoDate').value,time:$('autoTime').value,duration:Number($('autoDuration').value),resource:$('autoResource').value.trim(),confirmed:$('autoConfirm').checked};
+  const r=await fetch('/api/auto-book',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>null);if(!r.ok)throw Error(data?.error||`Error HTTP ${r.status}`);
+  await refresh();e.target.reset();$('autoDuration').value=30;$('autoResource').value='Principal';
+  n.textContent='✓ Reserva confirmada automáticamente y guardada en Supabase. Aparece en Resumen y Agenda.';
+ }catch(err){n.textContent=errorMessage(err)}finally{button.disabled=false}
 });

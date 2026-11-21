@@ -3,19 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nexora 6.6 | Gestión de negocios</title>
+<title>Nexora 6.8 | Gestión de negocios</title>
 <link rel="stylesheet" href="panel.css">
 </head>
 <body>
 <div class="shell">
 <aside>
-<div class="brand">✦ Nexora <small>6.6 · Business</small></div>
+<div class="brand">✦ Nexora <small>6.8 · Business</small></div>
 <a href="/index.html" style="display:block;margin:18px 0 12px;padding:12px 14px;border:1px solid rgba(119,170,255,.4);border-radius:12px;background:rgba(58,111,224,.15);color:#e9f1ff;text-decoration:none;font-weight:700;">🏠 Volver al inicio ↗</a>
 <nav>
 <button data-tab="dashboard" class="selected">▦ Resumen</button>
 <button data-tab="agenda">▦ Agenda</button>
 <button data-tab="clientes">♙ Clientes</button>
 <button data-tab="recepcion">🤖 Recepcionista</button>
+<button data-tab="auto">⚡ Reserva automática</button>
 <button data-tab="config">⚙ Negocio</button>
 </nav>
 <div class="foot">Supabase conectado · Canales externos pendientes</div>
@@ -44,7 +45,8 @@
 <label>Empleado o recurso<input id="requestResource" maxlength="80" value="Principal" required></label>
 <button type="submit">✓ Confirmar y guardar en Supabase</button></form>
 <p class="muted">La propuesta no garantiza disponibilidad. Supabase impide solapamientos al guardar. Confirma los datos y solicita la autorización del cliente antes de pulsar guardar. La reserva solo se crea cuando pulsas confirmar. Para nuevos clientes, regístralos primero en la sección Clientes.</p></div></section>
-<section id="config" class="page hidden"><div class="panel"><h2>Configuración del negocio</h2><form id="businessForm" class="grid"><label>Nombre del negocio<input id="businessName" required maxlength="100" placeholder="Mi negocio"></label><label>Tipo de negocio<select id="businessType"><option value="general">Servicios generales</option><option value="belleza">Belleza y bienestar</option><option value="salud">Salud y consultas</option><option value="automotriz">Automotriz</option><option value="educacion">Educación</option><option value="hogar">Servicios del hogar</option><option value="otro">Otro</option></select></label><label>Zona horaria (IANA)<input id="businessTimezone" maxlength="80" value="America/New_York" required placeholder="America/New_York"></label><label>Horario de atención (texto)<input id="businessHours" maxlength="500" placeholder="Lun-Vie 9:00-18:00; Sáb 10:00-14:00"></label><label class="wide">Servicios y precios (uno por línea)<textarea id="businessServices" rows="6" maxlength="4000" placeholder="Corte | $25 | 30 minutos&#10;Consulta | $40 | 60 minutos"></textarea></label><label class="wide">Indicaciones de atención<textarea id="businessInstructions" rows="3" maxlength="1500" placeholder="Atendemos solo con cita previa"></textarea></label><button type="submit">Guardar configuración</button></form><p class="note" id="businessNotice" role="status"></p></div><div class="panel"><h2>Automatizaciones</h2><p>La recepcionista puede responder preguntas de prueba mediante OpenRouter. WhatsApp, Messenger y llamadas todavía no están conectados. Las reservas requieren confirmación manual.</p></div></section>
+<section id="auto" class="page hidden"><div class="panel"><h2>🤖 Reserva autónoma · Simulador de cliente</h2><p class="muted">Prueba cómo Nexora registra automáticamente una reserva cuando el cliente confirma. No hace falta que el propietario apruebe la cita. Este simulador requiere la sesión del propietario y todavía no recibe WhatsApp ni llamadas.</p><form id="autoForm" class="grid"><label>Nombre del cliente<input id="autoName" maxlength="100" required placeholder="Ej. Carlos Pérez"></label><label>Servicio<input id="autoService" maxlength="100" required placeholder="Ej. Corte de cabello"></label><label>Fecha<input id="autoDate" type="date" required></label><label>Hora<input id="autoTime" type="time" required></label><label>Duración (minutos)<input id="autoDuration" type="number" min="15" max="480" step="15" value="30" required></label><label>Empleado o recurso<input id="autoResource" maxlength="80" value="Principal" required></label><label class="wide"><input id="autoConfirm" type="checkbox" required> Soy el cliente de prueba y confirmo esta reserva</label><button type="submit">✓ Confirmar como cliente y reservar automáticamente</button></form><p class="note" id="autoNotice" role="status"></p></div></section>
+<section id="config" class="page hidden"><div class="panel"><h2>Configuración del negocio</h2><form id="businessForm" class="grid"><label>Nombre del negocio<input id="businessName" required maxlength="100" placeholder="Mi negocio"></label><label>Tipo de negocio<select id="businessType"><option value="general">Servicios generales</option><option value="belleza">Belleza y bienestar</option><option value="salud">Salud y consultas</option><option value="automotriz">Automotriz</option><option value="educacion">Educación</option><option value="hogar">Servicios del hogar</option><option value="otro">Otro</option></select></label><label>Zona horaria (IANA)<input id="businessTimezone" maxlength="80" value="America/New_York" required placeholder="America/New_York"></label><label>Horario de atención (texto)<input id="businessHours" maxlength="500" placeholder="Lun-Vie 9:00-18:00; Sáb 10:00-14:00"></label><label class="wide">Servicios y precios (uno por línea)<textarea id="businessServices" rows="6" maxlength="4000" placeholder="Corte | $25 | 30 minutos&#10;Consulta | $40 | 60 minutos"></textarea></label><label class="wide">Indicaciones de atención<textarea id="businessInstructions" rows="3" maxlength="1500" placeholder="Atendemos solo con cita previa"></textarea></label><button type="submit">Guardar configuración</button></form><p class="note" id="businessNotice" role="status"></p></div><div class="panel"><h2>Automatizaciones</h2><p>La recepcionista puede responder preguntas de prueba mediante OpenRouter. WhatsApp, Messenger y llamadas todavía no están conectados. El simulador de reserva autónoma permite confirmar como cliente sin aprobación del propietario. Las integraciones externas siguen pendientes.</p></div></section>
 </main>
 </div>
 <script src="panel.js" defer></script>
