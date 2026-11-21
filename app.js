@@ -303,6 +303,3 @@ nexoraStyle.textContent = `
 `;
 document.head.append(nexoraStyle);
 render();
-
-// Nexora 6.0: precargar ideas desde la página principal sin enviarlas automáticamente.
-try { const idea = new URLSearchParams(window.location.search).get('prompt'); if (idea && idea.length <= 4000) { const box = document.getElementById('prompt'); if (box) box.value = idea; } } catch (_) {}
