@@ -165,7 +165,6 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify({
             model,
             messages: [
-              {
                {
   role: 'system',
   content: `Eres Nexora AI, un asistente de inteligencia artificial
