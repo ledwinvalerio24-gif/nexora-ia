@@ -1,10 +1,18 @@
-NEXORA 6.4 — PRUEBA INTERNA DE RECEPCIONISTA
+NEXORA AI 6.5 - RECEPCIONISTA CON IA (PRUEBAS)
 
-1. Sube panel.html, panel.js y panel.css a la RAÍZ de GitHub, reemplazando los existentes.
-2. No reemplaces otros archivos; no ejecutes SQL nuevo.
-3. Espera a que Vercel muestre Ready. Inicia sesión en chat.html si es necesario.
-4. Abre panel.html > Recepcionista. Registra antes un cliente de prueba en Clientes.
-5. Escribe: Quiero una consulta mañana a las 4:00 pm. Pulsa Analizar solicitud.
-6. Selecciona el cliente, verifica fecha/hora y pulsa Confirmar. Comprueba la cita en Agenda y en nexora_bookings.
+1. En Supabase > SQL Editor, ejecuta setup-6.5.sql (no borra registros).
+2. Sube panel.html, panel.js, panel.css a la RAÍZ del repositorio.
+3. Sube api/receptionist.js dentro de la carpeta api existente.
+4. No reemplaces api/chat.js ni las variables de entorno actuales.
+5. Espera Vercel Ready. Inicia sesión en chat.html desde el MISMO dominio y abre panel.html.
+6. En Negocio configura nombre, zona horaria IANA, servicios/precios, horarios e instrucciones y guarda.
+7. En Recepcionista escribe: «¿Cuánto cuesta un corte y a qué hora abren?» y pulsa Analizar solicitud.
+8. Prueba «Quiero un corte mañana a las 4 pm». Revisa y confirma manualmente la propuesta antes de guardar.
 
-LIMITACIONES: Esta etapa NO usa todavía un modelo de IA, WhatsApp, Messenger ni llamadas. El parser entiende hoy, mañana, pasado mañana y fechas AAAA-MM-DD, además de horas sencillas. Requiere confirmación humana. La zona horaria es la del navegador; antes de operar con clientes reales hay que incorporar zona horaria por negocio y pruebas de seguridad RLS. La restricción de solapamiento existente en Supabase protege citas simultáneas con el mismo recurso (respetando la comparación exacta del nombre).
+LIMITACIONES IMPORTANTES:
+- No conecta WhatsApp, Messenger ni llamadas.
+- La IA puede equivocarse; no confirma reservas ni comprueba disponibilidad por sí sola.
+- La inserción de reservas usa el flujo existente. Antes de usar en producción verifica RLS, solapamientos y zona horaria del negocio.
+- La agenda actual usa zona horaria del navegador; el ajuste timezone informa a la IA pero no convierte aún los formularios de agenda.
+- No compartas datos personales reales en las pruebas. Cada consulta a IA envía el mensaje y la configuración del negocio a OpenRouter.
+- Puede haber costes o límites de OpenRouter.
