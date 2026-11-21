@@ -1,8 +1,14 @@
-# NEXORA AI - Demo prototype
+# Nexora AI 5.0
+Aplicación web estática en español, sin dependencias externas.
 
-A static prototype suitable for GitHub Pages or Vercel.
+## Contenido
+- index.html: interfaz
+- styles.css: diseño responsive
+- app.js: chat de demostración e historial local
+- vercel.json: configuración de despliegue
 
-## Publish with Vercel
-Import this repository. Framework preset: Other. Build command: leave blank. Output directory: leave blank (the root `index.html` is served).
+## Uso
+Abre index.html en el navegador para probarla. Para publicarla en Vercel, importa una carpeta o repositorio con estos archivos en la raíz y selecciona Framework Preset: Other. No requiere variables de entorno ni comando de compilación.
 
-This is only a frontend demo: the chat replies are simulated, and data is saved in the browser. There is no live AI, secure user accounts, cloud database, or real checkout yet.
+## Importante
+Este proyecto es una reconstrucción nueva, no una copia recuperada de una versión anterior. El chatbot es una demostración basada en respuestas locales, no está conectado a un modelo de IA. Los chats se guardan únicamente en localStorage de este navegador; no hay registro de cuentas ni sincronización entre dispositivos. Para habilitar respuestas de IA reales, integra una función de servidor que mantenga las claves API fuera del navegador.
