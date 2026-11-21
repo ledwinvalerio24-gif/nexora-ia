@@ -220,7 +220,15 @@ module.exports = async (req, res) => {
       });
     }
 
-    console.error('Chat server error:', error.status || error.message);
+    console.error('Gemini status:', response.status);
+console.error(
+  'Gemini error detail:',
+  JSON.stringify({
+    code: answer?.error?.code,
+    status: answer?.error?.status,
+    message: answer?.error?.message
+  }).slice(0, 1000)
+);
 
     return json(res, 500, {
       error: 'No se pudo completar la solicitud.'
